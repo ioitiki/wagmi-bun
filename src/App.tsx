@@ -1,34 +1,64 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { WagmiProvider, createConfig, http } from 'wagmi'
+import { polygonAmoy } from 'wagmi/chains'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createWeb3Modal, useWeb3Modal, useWeb3ModalEvents, useWeb3ModalState, useWeb3ModalTheme } from '@web3modal/wagmi/react'
+import { walletConnect } from 'wagmi/connectors'
+import { metaKeep } from './connectors/metaKeep'
+
+const projectId = import.meta.env.VITE_PROJECT_ID
+const appId = import.meta.env.VITE_METAKEEP_APP_ID
+if (!projectId || !appId) {
+  throw new Error('VITE_PROJECT_ID is not set')
+}
+
+const queryClient = new QueryClient()
+
+const config = createConfig({
+  chains: [polygonAmoy],
+  transports: {
+    [polygonAmoy.id]: http('https://polygon-amoy-bor-rpc.publicnode.com'),
+  },
+  connectors: [
+    metaKeep({ appId }),
+    walletConnect({ projectId }),
+  ],
+})
+
+createWeb3Modal({
+  wagmiConfig: config,
+  projectId,
+  themeMode: 'light',
+  themeVariables: {
+    '--w3m-color-mix': '#00DCFF',
+    '--w3m-color-mix-strength': 20
+  }
+})
 
 function App() {
-  const [count, setCount] = useState(0)
+
+  const modal = useWeb3Modal()
+  const state = useWeb3ModalState()
+  const { themeMode, themeVariables, setThemeMode } = useWeb3ModalTheme()
+  const events = useWeb3ModalEvents()
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <w3m-button />
+        <w3m-network-button />
+        <w3m-connect-button />
+        <w3m-account-button />
+
+        <button onClick={() => modal.open()}>Connect Wallet</button>
+        <button onClick={() => modal.open({ view: 'Networks' })}>Choose Network</button>
+        <button onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}>
+          Toggle Theme Mode
         </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+        <pre>{JSON.stringify(state, null, 2)}</pre>
+        <pre>{JSON.stringify({ themeMode, themeVariables }, null, 2)}</pre>
+        <pre>{JSON.stringify(events, null, 2)}</pre>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
 }
 
